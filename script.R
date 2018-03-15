@@ -1,10 +1,31 @@
-library(tidyverse)
-subject <- rep(paste0("Subj", 1:6), 3)
-trt <- rep(c("A", "B"), 9)
-week <- rep(1:3, each = 6)
-value <- sample.int(10, size = 18, replace = TRUE)
-df <- data_frame(subject, trt, week, value)
+library(sangerseqR);
+library(tidyverse);
+library(Biostrings);
 
-ggplot(df, aes(x = week, y = subject, fill = value)) +
-   facet_grid(trt ~ ., scale = "free") +
-   geom_tile()
+
+# From VWF sequencing data 012018/Notes.txt
+keys <- list(
+    1 = "Father",
+    2 = "Mother",
+    3 = "Sister",
+    4 = "Brother")
+
+
+# Sanger sequencing files
+fn.ab1 <- list.files(
+    path = "VWF sequencing data 012018",
+    pattern = "*.ab1$",
+    full.names = TRUE,
+    recursive = TRUE);
+
+
+# Reference sequence files
+fn.seq <- sub("ab1$", "txt", fn.ab1);
+
+
+ab1 <- lapply(fn.ab1, readsangerseq);
+seq <- lapply(fn.seq, function(x)
+    DNAString(paste0(readLines(x), collapse = "")));
+
+
+#lapply(ab1, width)
