@@ -44,13 +44,39 @@ split(lapply(ab1, function(x) x@primarySeq), ID)
 
 
 x <- unlist(strsplit(as.character(seq[[1]]), ""));
+x2 <- unlist(strsplit(as.character(primarySeq(ab1[[1]])), ""));
+
+
+# Add mismatch
+x2[10] <- "A";
+
+
+every_nth <- function(x, nth, empty = TRUE, inverse = FALSE) {
+    if (!inverse) {
+        if(empty) {
+            x[1:nth == 1] <- "";
+            x;
+        } else {
+            x[1:nth != 1]
+        }
+    } else {
+        if(empty) {
+            x[1:nth != 1] <- ""
+            x
+        } else {
+            x[1:nth == 1]
+        }
+    }
+}
+
+
 
 set.seed(2018);
-df <- cbind.data.frame(nt = x, pos = 1:length(x), val = sample(1:10, length(x), replace = T));
+df <- cbind.data.frame(nt = x, nt2 = x2, pos = 1:length(x), val = sample(1:10, length(x), replace = T));
 
 
-maxN <- 250;
-df %>%
+maxN <- 200;
+tmp <- df %>%
     mutate(bin = cut(pos, breaks = seq(0, n() + maxN, by = maxN))) %>%
     group_by(bin) %>%
     mutate(pos.in.bin = factor(1:n(), levels = as.character(1:maxN))) %>%
@@ -61,11 +87,31 @@ df %>%
         nt.A = ifelse(nt == "A", as.character(nt), NA),
         nt.C = ifelse(nt == "C", as.character(nt), NA),
         nt.G = ifelse(nt == "G", as.character(nt), NA),
-        nt.T = ifelse(nt == "T", as.character(nt), NA)) %>%
-    ggplot(aes(x = pos, val)) +
+        nt.T = ifelse(nt == "T", as.character(nt), NA),
+        flag = ifelse(nt == nt2, NA, 1));
+
+
+gg <- ggplot(tmp, aes(x = pos, val)) +
         geom_line() +
         facet_wrap(~ bin, scales = "free_x", ncol = 1) +
         theme_bw() +
+        theme(
+          strip.background = element_blank(),
+          strip.text.x = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black"),
+          axis.line.y = element_line(colour = "black"),
+          axis.text.x=element_blank()) +
+        geom_rect(aes(
+            xmin = flag * (pos - 0.5),
+            xmax  = flag * (pos + 0.5),
+            ymin = -Inf, ymax = +Inf), alpha = 0.4, fill = "grey") +
+#        geom_text(
+#            aes(label = nt2, x = pos, y = Inf),
+#            size = 1.5,
+#            vjust = +2) +
         geom_text(
             aes(label = nt.A, x = pos, y = -Inf),
             size = 1.5,
@@ -85,10 +131,47 @@ df %>%
             aes(label = nt.T, x = pos, y = -Inf),
             size = 1.5,
             vjust = -1,
-            colour = "red") + 
+            colour = "red") +
     labs(x = "Position [in nt]", y = "Value") +
-    theme_bw() +
-    theme(
-      strip.background = element_blank(),
-      strip.text.x = element_blank());
+    scale_x_continuous(breaks = seq(0, length(x), by = 20));
+
+
+
+
+
+
+
 ggsave("example.png", width = 11.69, height = 8.27);
+
+
+
+## Different attempt
+# https://stackoverflow.com/questions/17492230/how-to-place-grobs-with-annotation-custom-at-precise-areas-of-the-plot-region/17493256#17493256
+# https://stackoverflow.com/questions/22818061/annotating-facet-title-as-strip-over-facet
+gg <- ggplot(tmp, aes(x = pos, val)) +
+        geom_line() +
+        facet_wrap(~ bin, scales = "free_x", ncol = 1) +
+        theme_bw() +
+        theme(
+          strip.background = element_blank(),
+          strip.text.x = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          axis.line.x = element_line(colour = "black"),
+          axis.line.y = element_line(colour = "black"),
+          axis.text.x=element_blank()) +
+        geom_rect(aes(
+            xmin = flag * (pos - 0.5),
+            xmax  = flag * (pos + 0.5),
+            ymin = -Inf, ymax = +Inf), alpha = 0.4, fill = "grey") +
+        labs(x = "Position [in nt]", y = "Value") +
+        scale_x_continuous(breaks = seq(0, length(x), by = 20));
+
+g <- ggplotGrob(gg);
+df.idx <- subset(g$layout, grepl("panel", name));
+g <- gtable::gtable_add_rows(g, unit(1, "strwidth", "ACGT") + unit(1, "cm"));
+
+
+grid.newpage();
+grid.draw(g);
