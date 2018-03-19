@@ -51,25 +51,6 @@ x2 <- unlist(strsplit(as.character(primarySeq(ab1[[1]])), ""));
 x2[10] <- "A";
 
 
-every_nth <- function(x, nth, empty = TRUE, inverse = FALSE) {
-    if (!inverse) {
-        if(empty) {
-            x[1:nth == 1] <- "";
-            x;
-        } else {
-            x[1:nth != 1]
-        }
-    } else {
-        if(empty) {
-            x[1:nth != 1] <- ""
-            x
-        } else {
-            x[1:nth == 1]
-        }
-    }
-}
-
-
 
 set.seed(2018);
 df <- cbind.data.frame(nt = x, nt2 = x2, pos = 1:length(x), val = sample(1:10, length(x), replace = T));
@@ -91,87 +72,81 @@ tmp <- df %>%
         flag = ifelse(nt == nt2, NA, 1));
 
 
-gg <- ggplot(tmp, aes(x = pos, val)) +
-        geom_line() +
-        facet_wrap(~ bin, scales = "free_x", ncol = 1) +
-        theme_bw() +
-        theme(
-          strip.background = element_blank(),
-          strip.text.x = element_blank(),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.border = element_blank(),
-          axis.line.x = element_line(colour = "black"),
-          axis.line.y = element_line(colour = "black"),
-          axis.text.x=element_blank()) +
-        geom_rect(aes(
-            xmin = flag * (pos - 0.5),
-            xmax  = flag * (pos + 0.5),
-            ymin = -Inf, ymax = +Inf), alpha = 0.4, fill = "grey") +
-#        geom_text(
-#            aes(label = nt2, x = pos, y = Inf),
-#            size = 1.5,
-#            vjust = +2) +
-        geom_text(
-            aes(label = nt.A, x = pos, y = -Inf),
-            size = 1.5,
-            vjust = -1,
-            colour = "green") +
-        geom_text(
-            aes(label = nt.C, x = pos, y = -Inf),
-            size = 1.5,
-            vjust = -1,
-            colour = "blue") +
-        geom_text(
-            aes(label = nt.G, x = pos, y = -Inf),
-            size = 1.5,
-            vjust = -1,
-            colour = "black") +
-        geom_text(
-            aes(label = nt.T, x = pos, y = -Inf),
-            size = 1.5,
-            vjust = -1,
-            colour = "red") +
-    labs(x = "Position [in nt]", y = "Value") +
-    scale_x_continuous(breaks = seq(0, length(x), by = 20));
 
-
-
-
-
-
-
-ggsave("example.png", width = 11.69, height = 8.27);
-
+library(gtable);
+theme_set(
+    theme_bw() +
+    theme(
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.line.x = element_line(colour = "black"),
+        axis.line.y = element_line(colour = "black")))
 
 
 ## Different attempt
 # https://stackoverflow.com/questions/17492230/how-to-place-grobs-with-annotation-custom-at-precise-areas-of-the-plot-region/17493256#17493256
 # https://stackoverflow.com/questions/22818061/annotating-facet-title-as-strip-over-facet
-gg <- ggplot(tmp, aes(x = pos, val)) +
+
+gg.val <- ggplot(tmp, aes(x = pos, val)) +
         geom_line() +
         facet_wrap(~ bin, scales = "free_x", ncol = 1) +
-        theme_bw() +
-        theme(
-          strip.background = element_blank(),
-          strip.text.x = element_blank(),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.border = element_blank(),
-          axis.line.x = element_line(colour = "black"),
-          axis.line.y = element_line(colour = "black"),
-          axis.text.x=element_blank()) +
-        geom_rect(aes(
+         geom_rect(aes(
             xmin = flag * (pos - 0.5),
             xmax  = flag * (pos + 0.5),
             ymin = -Inf, ymax = +Inf), alpha = 0.4, fill = "grey") +
         labs(x = "Position [in nt]", y = "Value") +
         scale_x_continuous(breaks = seq(0, length(x), by = 20));
 
-g <- ggplotGrob(gg);
-df.idx <- subset(g$layout, grepl("panel", name));
-g <- gtable::gtable_add_rows(g, unit(1, "strwidth", "ACGT") + unit(1, "cm"));
 
 
+gg.seq <- ggplot(tmp, aes(x = pos, y = 1)) +
+    facet_wrap(~ bin, scales = "free_x", ncol = 1) +
+    geom_text(
+        aes(label = nt2, x = pos, y = 1.2),
+        size = 1.5,
+        vjust = +2) +
+    geom_text(
+        aes(label = nt.A, x = pos, y = 1),
+        size = 1.5,
+        vjust = -1,
+        colour = "green") +
+    geom_text(
+        aes(label = nt.C, x = pos, y = 1),
+        size = 1.5,
+        vjust = -1,
+        colour = "blue") +
+    geom_text(
+        aes(label = nt.G, x = pos, y = 1),
+        size = 1.5,
+        vjust = -1,
+        colour = "black") +
+    geom_text(
+        aes(label = nt.T, x = pos, y = 1),
+        size = 1.5,
+        vjust = -1,
+        colour = "red");
+
+
+g.val <- ggplotGrob(gg.val);
+g.seq <- ggplotGrob(gg.seq);
+idx <- subset(g.val$layout, grepl("panel", g.val$layout$name), select = t:l);
+pos <- cumsum(c(idx$t[1] - 1, diff(idx$t) + 1));
+for (i in 1:length(pos)) {
+    g.val <- gtable::gtable_add_rows(
+        x = g.val,
+        heights = unit(1, "strwidth", "AC"),
+        pos = pos[i]);
+}
+g.val <- gtable_add_grob(
+    x = g.val,
+    grobs = g.seq$grobs[grepl("panel", g.seq$layout$name)],
+    t = pos + 1,
+    l = 4);
 grid.newpage();
-grid.draw(g);
+grid.draw(g.val);
+
+
+ggsave("example.png", g.val, width = 11.69, height = 8.27);
