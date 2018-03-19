@@ -2,6 +2,8 @@ library(sangerseqR);
 library(tidyverse);
 library(Biostrings);
 library(grid);
+library(gtable);
+
 
 
 
@@ -42,18 +44,32 @@ stopifnot(
 split(lapply(ab1, function(x) x@primarySeq), ID)
 
 
-
-x <- unlist(strsplit(as.character(seq[[1]]), ""));
-x2 <- unlist(strsplit(as.character(primarySeq(ab1[[1]])), ""));
+set.seed(2018);
+len <- sapply(seq, length)[1];
+df <- cbind.data.frame(
+    nt.ref = unlist(strsplit(as.character(seq[[1]]), "")),
+    nt.pri = unlist(strsplit(as.character(primarySeq(ab1[[1]])), "")),
+    nt.sec = unlist(strsplit(as.character(secondarySeq(ab1[[1]])), "")),
+    pos = 1:len,
+    val = sample(1:10, len, replace = T));
 
 
 # Add mismatch
-x2[10] <- "A";
+df$nt.pri[10] <- "A";
 
 
 
-set.seed(2018);
-df <- cbind.data.frame(nt = x, nt2 = x2, pos = 1:length(x), val = sample(1:10, length(x), replace = T));
+# Trace matrix
+tm <- traceMatrix(ab1[[1]]);
+df.tm <- matrix(tm, ncol = 4, dimnames = list(NULL, c("A", "C", "G", "T"))) %>%
+    as.data.frame() %>%
+    mutate(
+        n = 1:n(),
+        pos.float = n / max(n) * x,
+        pos = round(pos.float)) %>%
+    group_by(pos) %>%
+    summarise_at(vars(A:T), sum)
+
 
 
 maxN <- 200;
@@ -64,16 +80,9 @@ tmp <- df %>%
     complete(pos.in.bin) %>%
     ungroup() %>%
     mutate(pos = 1:n()) %>%
-    mutate(
-        nt.A = ifelse(nt == "A", as.character(nt), NA),
-        nt.C = ifelse(nt == "C", as.character(nt), NA),
-        nt.G = ifelse(nt == "G", as.character(nt), NA),
-        nt.T = ifelse(nt == "T", as.character(nt), NA),
-        flag = ifelse(nt == nt2, NA, 1));
+    mutate(flag = ifelse(nt.ref == nt.pri, NA, 1));
 
 
-
-library(gtable);
 theme_set(
     theme_bw() +
     theme(
@@ -86,11 +95,8 @@ theme_set(
         axis.line.y = element_line(colour = "black")))
 
 
-## Different attempt
-# https://stackoverflow.com/questions/17492230/how-to-place-grobs-with-annotation-custom-at-precise-areas-of-the-plot-region/17493256#17493256
-# https://stackoverflow.com/questions/22818061/annotating-facet-title-as-strip-over-facet
-
-gg.val <- ggplot(tmp, aes(x = pos, val)) +
+gg.val <- tmp %>%
+    ggplot(aes(x = pos, val)) +
         geom_line() +
         facet_wrap(~ bin, scales = "free_x", ncol = 1) +
          geom_rect(aes(
@@ -101,37 +107,35 @@ gg.val <- ggplot(tmp, aes(x = pos, val)) +
         scale_x_continuous(breaks = seq(0, length(x), by = 20));
 
 
-
-gg.seq <- ggplot(tmp, aes(x = pos, y = 1)) +
-    facet_wrap(~ bin, scales = "free_x", ncol = 1) +
-    geom_text(
-        aes(label = nt2, x = pos, y = 1.2),
-        size = 1.5,
-        vjust = +2) +
-    geom_text(
-        aes(label = nt.A, x = pos, y = 1),
-        size = 1.5,
-        vjust = -1,
-        colour = "green") +
-    geom_text(
-        aes(label = nt.C, x = pos, y = 1),
-        size = 1.5,
-        vjust = -1,
-        colour = "blue") +
-    geom_text(
-        aes(label = nt.G, x = pos, y = 1),
-        size = 1.5,
-        vjust = -1,
-        colour = "black") +
-    geom_text(
-        aes(label = nt.T, x = pos, y = 1),
-        size = 1.5,
-        vjust = -1,
-        colour = "red");
+# Produce sequence panels
+gg.seq <- tmp %>%
+    select(bin, pos, nt.ref, nt.pri, nt.sec) %>%
+    gather(seq, nt, nt.ref, nt.pri, nt.sec) %>%
+    mutate(
+        seq = factor(seq, levels = rev(c("nt.ref", "nt.pri", "nt.sec"))),
+        col = case_when(
+            seq == "nt.ref" & nt == "A" ~ "A",
+            seq == "nt.ref" & nt == "C" ~ "C",
+            seq == "nt.ref" & nt == "G" ~ "G",
+            seq == "nt.ref" & nt == "T" ~ "T",
+            TRUE ~ "G")) %>%
+    ggplot() +
+        facet_wrap(~ bin, scales = "free_x", ncol = 1) +
+        geom_text(
+            aes(x = pos, y = seq, label = nt, colour = col),
+            size = 1.5,
+            show.legend = FALSE,
+            fontface = "bold") +
+        scale_colour_manual(
+            values = c("A" = "green", "C" = "blue", "G" = "black", "T" = "red")) +
+        scale_y_discrete(
+            labels = c("nt.ref" = "Ref seq", "nt.pri" = "Pri seq", "nt.sec" = "Sec seq"));
 
 
+# Combine grobs from gg.val and gg.seq
 g.val <- ggplotGrob(gg.val);
 g.seq <- ggplotGrob(gg.seq);
+# Insert rows at position pos
 idx <- subset(g.val$layout, grepl("panel", g.val$layout$name), select = t:l);
 pos <- cumsum(c(idx$t[1] - 1, diff(idx$t) + 1));
 for (i in 1:length(pos)) {
@@ -140,6 +144,7 @@ for (i in 1:length(pos)) {
         heights = unit(1, "strwidth", "AC"),
         pos = pos[i]);
 }
+# Add grobs from g.seq into new g.val rows
 g.val <- gtable_add_grob(
     x = g.val,
     grobs = g.seq$grobs[grepl("panel", g.seq$layout$name)],
