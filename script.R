@@ -8,7 +8,7 @@ keys <- list(
     "1" = "Father",
     "2" = "Mother",
     "3" = "Sister",
-    "4" = "Brother")
+    "4" = "Brother");
 
 
 # Sanger sequencing files
@@ -19,6 +19,11 @@ fn.ab1 <- list.files(
     recursive = TRUE);
 
 
+
+lst <- lapply(fn.ab1, function(x) {
+
+})
+
 # Reference sequence files
 fn.seq <- sub("ab1$", "txt", fn.ab1);
 
@@ -28,6 +33,7 @@ ID <- gsub("(^\\d-VMF-|_\\w{3}\\.ab1)", "", basename(fn.ab1));
 title <- gsub("\\.ab1", "", basename(fn.ab1));
 
 
+# Read sequencing and sequence data
 ab1 <- lapply(fn.ab1, readsangerseq);
 seq <- lapply(fn.seq, function(x)
     DNAString(paste0(readLines(x), collapse = "")));
@@ -39,4 +45,4 @@ stopifnot(
 
 
 # Plot Sanger sequencing results
-ggchrom(seq[[1]], ab1[[1]], title[1]);
+for (i in 1:length(seq)) ggchrom(seq[[i]], ab1[[i]], title[i]);

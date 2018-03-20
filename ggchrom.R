@@ -28,7 +28,7 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
 
 
     # Add mismatch
-    df.seq$nt.pri[10] <- "A";
+    #df.seq$nt.pri[10] <- "A";
 
 
     # Trace matrix
@@ -52,7 +52,7 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
         ungroup() %>%
         mutate(pos = 1:n()) %>%
         mutate(flag = ifelse(nt.ref == nt.pri, NA, 1)) %>%
-        gather(nt.tr, val, A:T)
+        gather(nt.tr, val, A:T);
 
 
     # Set general ggplot theme
@@ -71,13 +71,13 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
     # Trace plot
     gg.val <- df %>%
         ggplot(aes(x = pos, y = val)) +
-            geom_line(aes(colour = nt.tr)) +
-#            geom_bar(aes(fill = nt.tr), stat = "identity") +
-            facet_wrap(~ bin, scales = "free_x", ncol = 1) +
             geom_rect(aes(
                 xmin = flag * (pos - 0.5),
                 xmax  = flag * (pos + 0.5),
                 ymin = -Inf, ymax = +Inf), alpha = 0.4, fill = "grey") +
+            geom_line(aes(colour = nt.tr)) +
+#            geom_bar(aes(fill = nt.tr), stat = "identity") +
+            facet_wrap(~ bin, scales = "free_x", ncol = 1) +
             labs(x = "Position [in nt]", y = "Signal", title = title) +
             scale_x_continuous(breaks = seq(0, len, by = 20)) +
 #            scale_fill_manual(
@@ -122,6 +122,7 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
                     "C" = col.ACGT[2],
                     "G" = col.ACGT[3],
                     "T" = col.ACGT[4])) +
+            scale_x_continuous(breaks = seq(0, len, by = 20)) +
             scale_y_discrete(
                 labels = c(
                     "nt.ref" = "Ref seq",
@@ -151,5 +152,10 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
         grid.draw(g.all);
 
     # Save as plot
-    ggsave("example.png", g.all, width = 10, height = 1.5 * nrow(idx));
+    cat(sprintf("Saving as %s.png\n", title));
+    ggsave(
+        file = sprintf("%s.png", title),
+        plot = g.all,
+        width = 10,
+        height = 1.5 * nrow(idx));
 }
