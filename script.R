@@ -20,9 +20,6 @@ fn.ab1 <- list.files(
 
 
 
-lst <- lapply(fn.ab1, function(x) {
-
-})
 
 # Reference sequence files
 fn.seq <- sub("ab1$", "txt", fn.ab1);
@@ -33,6 +30,7 @@ ID <- gsub("(^\\d-VMF-|_\\w{3}\\.ab1)", "", basename(fn.ab1));
 title <- gsub("\\.ab1", "", basename(fn.ab1));
 
 
+
 # Read sequencing and sequence data
 ab1 <- lapply(fn.ab1, readsangerseq);
 seq <- lapply(fn.seq, function(x)
@@ -40,9 +38,15 @@ seq <- lapply(fn.seq, function(x)
 
 
 # Sanity check
+stopifnot(length(ab1) == length(seq));
 stopifnot(
     all(sapply(ab1, function(x) x@primarySeq@length) == sapply(seq, length)))
 
 
+# Combine ab1, seq and title in list
+lst <- lapply(1:length(ab1), function(i)
+    c(sangerseq = ab1[i], seq = seq[i], title = title[i]))
+
+
 # Plot Sanger sequencing results
-for (i in 1:length(seq)) ggchrom(seq[[i]], ab1[[i]], title[i]);
+lapply(lst, function(x) ggchrom(x$seq, x$sangerseq, x$title));
