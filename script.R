@@ -1,5 +1,7 @@
 library(sangerseqR);
 library(Biostrings);
+library(GenomicRanges);
+library(tidyverse);
 source("ggchrom.R");
 
 
@@ -19,16 +21,13 @@ fn.ab1 <- list.files(
     recursive = TRUE);
 
 
-
-
 # Reference sequence files
 fn.seq <- sub("ab1$", "txt", fn.ab1);
 
 
 # Parse fn.ab1 to extract exon ID
-ID <- gsub("(^\\d-VMF-|_\\w{3}\\.ab1)", "", basename(fn.ab1));
+id.exon <- gsub("^.+-(\\d{2})\\w_\\w\\d{2}\\.ab1", "E\\1", basename(fn.ab1));
 title <- gsub("\\.ab1", "", basename(fn.ab1));
-
 
 
 # Read sequencing and sequence data
@@ -49,14 +48,41 @@ lst <- lapply(1:length(ab1), function(i)
 
 
 # Plot Sanger sequencing results
-lapply(lst, function(x) ggchrom(x$seq, x$sangerseq, x$title));
+#lapply(lst, function(x) ggchrom(x$seq, x$sangerseq, x$title));
 
 
 # pairWise alignment
-lst.perExon <- split(lst, ID);
+lst.perExon <- split(lst, id.exon);
+ab1.exon <- lapply(lst.perExon, function(x)
+    lapply(x, function(y) primarySeq(y$sangerseq)))
 
 
-seq.exon <- lapply(lst.perExon[[1]], function(x) x$seq);
-
-
+# Read reference sequence and annotation of VWF (NM_000552.4)
 fa <- readDNAStringSet("ref/NM_000552.4.fa");
+gr <- read.delim("ref/NM_000552.4.gff3", header = F, comment.char = "#") %>%
+    filter(V3 == "exon") %>%
+    separate(V9, into = "id", sep = ";", extra = "drop") %>%
+    mutate(id = sub("ID=id", "E", id)) %>%
+    select(V1, V4, V5, id) %>%
+    makeGRangesFromDataFrame(
+        keep.extra.columns = TRUE,
+        seqnames.field = "V1",
+        start.field = "V4",
+        end.field = "V5");
+
+
+# Extract exon sequences
+ir <- ranges(gr);
+names(ir) <- gr$id;
+seq.exon <- extractAt(unlist(fa), at = ir);
+
+
+
+seq.exon <- seq.exon[names(seq.exon) %in% id.exon]
+
+
+pairwiseAlignment(seq.exon[1], ab1.exon[[1]][[1]], type = "global-local")
+
+
+
+tmp <- lapply(ab1.exon, function(x) DNAStringSet(x))
