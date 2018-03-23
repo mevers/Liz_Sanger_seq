@@ -50,3 +50,13 @@ lst <- lapply(1:length(ab1), function(i)
 
 # Plot Sanger sequencing results
 lapply(lst, function(x) ggchrom(x$seq, x$sangerseq, x$title));
+
+
+# pairWise alignment
+lst.perExon <- split(lst, ID);
+
+
+seq.exon <- lapply(lst.perExon[[1]], function(x) x$seq);
+
+
+fa <- readDNAStringSet("ref/NM_000552.4.fa");
