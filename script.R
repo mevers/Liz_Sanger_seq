@@ -6,6 +6,7 @@ library(msa);
 source("ggchrom.R");
 source("get.sangerseq.R");
 
+
 # From VWF sequencing data 012018/Notes.txt
 keys <- list(
     "1" = "Father",
@@ -14,36 +15,36 @@ keys <- list(
     "4" = "Brother");
 
 
-lst.prob <- get.sangerseq(
-    path = "2016 sequencing",
-    id.regexp = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"));
-
-
-lst.rltv <- get.sangerseq(
-    path = "VWF sequencing data 012018",
-    id.regexp = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"));
-
-
-
+# Read Sanger sequencing data into list
 lst <- get.sangerseq(
     path = "rawdata",
     id.sample.re = list("^(.{1,3})-.+", "\\1"),
-    id.exon.re = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"))
+    id.exon.re = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"),
+    id.strand.re = list("^.+-\\d{1,2}(\\w)_\\w\\d{2}\\.ab1", "\\1"));
 
 
 # Convert list to long dataframe
 df.seq <- do.call(rbind.data.frame, lapply(lst, function(x)
-    cbind(id.sample = x$id.sample, id.exon = x$id.exon, seq = x$seq.pri))) %>%
+    cbind(
+        id.sample = x$id.sample,
+        id.exon = x$id.exon,
+        id.strand = x$id.strand,
+        seq = x$seq.pri))) %>%
     mutate_if(is.factor, as.character) %>%
     group_by(id.sample, id.exon) %>%
     arrange(id.sample, id.exon) %>%
-    mutate(ntot = n()) %>%
-    mutate(id.exon.unique = ifelse(
-        ntot > 1,
-        sprintf("%s_rep%i", id.exon, 1:n()),
-        id.exon)) %>%
+    mutate(
+        ntot = n(),
+        id.exon.unique = ifelse(
+            ntot > 1,
+            sprintf("%s_rep%i", id.exon, 1:n()),
+            id.exon)) %>%
     ungroup() %>%
-    select(-ntot) %>%
+    mutate(seq = ifelse(
+        id.strand == "R",
+        as.character(reverseComplement(DNAStringSet(seq))),
+        seq)) %>%
+    select(-ntot, -id.strand) %>%
     spread(id.sample, seq)
 
 
@@ -70,9 +71,10 @@ gr <- read.delim("ref/NM_000552.4.gff3", header = F, comment.char = "#") %>%
 ir <- ranges(gr);
 names(ir) <- gr$id;
 seq.ref <- extractAt(unlist(fa), at = ir);
-df.ref <- as_tibble(as.character(reverseComplement(seq.ref))) %>%
+df.ref <- as_tibble(as.character((seq.ref))) %>%
     rownames_to_column("id.exon") %>%
     rename(ref = value)
+
 
 
 # Left-join of Sanger and reference sequences; keep only entries where
@@ -84,5 +86,17 @@ df <- left_join(df.seq, df.ref, by = "id.exon") %>%
 
 # Multiple sequence alignment
 seq <- apply(df[, -1], 1, function(x) DNAStringSet(unlist(x)));
+names(seq) <- rownames(df);
 res.msa <- lapply(seq, function(x) msa(x, type = "dna", order = "input"));
-print(res.msa[[1]], show = "complete");
+
+
+# Print results
+for (i in 1:length(res.msa)) msaPrettyPrint(
+    res.msa[[i]],
+    file = sprintf("plots/%s.pdf", names(res.msa)[i]),
+    paperWidth = 11.69, paperHeight = 8.27,
+    margins = c(0.1, 0.2),
+    askForOverwrite = FALSE,
+    shadingMode = "identical",
+    showConsensus = "none",
+    logoColors = "accessible area");
