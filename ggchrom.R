@@ -7,28 +7,27 @@ require(gtable);
 
 
 # Plot Sanger sequencing results
-ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blue", "black", "red")) {
+ggchrom <- function(
+    ab1 = NULL,
+    title = "",
+    maxN = 200,
+    col.ACGT = c("green", "blue", "black", "red")) {
+
 
     # Sanity check
-    stopifnot(class(seq) %in% "DNAString");
     stopifnot(class(ab1) %in% "sangerseq");
     stopifnot(length(col.ACGT) == 4);
 
 
     # Get length of sequence
-    len <- length(seq);
+    len <- length(primarySeq(ab1));
 
 
     # Reference, primary and secondary sequence
     df.seq <- cbind.data.frame(
-        nt.ref = unlist(strsplit(as.character(seq), "")),
         nt.pri = unlist(strsplit(as.character(primarySeq(ab1)), "")),
         nt.sec = unlist(strsplit(as.character(secondarySeq(ab1)), "")),
         pos = 1:len);
-
-
-    # Add mismatch
-    #df.seq$nt.pri[10] <- "A";
 
 
     # Trace matrix
@@ -51,7 +50,6 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
         complete(pos.in.bin) %>%
         ungroup() %>%
         mutate(pos = 1:n()) %>%
-        mutate(flag = ifelse(nt.ref == nt.pri, NA, 1)) %>%
         gather(nt.tr, val, A:T);
 
 
@@ -70,22 +68,11 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
 
     # Trace plot
     gg.val <- df %>%
-        ggplot(aes(x = pos, y = val)) +
-            geom_rect(aes(
-                xmin = flag * (pos - 0.5),
-                xmax  = flag * (pos + 0.5),
-                ymin = -Inf, ymax = +Inf), alpha = 0.4, fill = "grey") +
+        ggplot(aes(x = pos, y = log10(val))) +
             geom_line(aes(colour = nt.tr)) +
-#            geom_bar(aes(fill = nt.tr), stat = "identity") +
             facet_wrap(~ bin, scales = "free_x", ncol = 1) +
-            labs(x = "Position [in nt]", y = "Signal", title = title) +
+            labs(x = "Position [in nt]", y = "log10 Signal", title = title) +
             scale_x_continuous(breaks = seq(0, len, by = 20)) +
-#            scale_fill_manual(
-#                values = c(
-#                    "A" = col.ACGT[1],
-#                    "C" = col.ACGT[2],
-#                    "G" = col.ACGT[3],
-#                    "T" = col.ACGT[4])) +
             scale_colour_manual(
                 values = c(
                     "A" = col.ACGT[1],
@@ -93,21 +80,20 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
                     "G" = col.ACGT[3],
                     "T" = col.ACGT[4])) +
             theme(legend.position = "bottom") +
-#            guides(fill = guide_legend(title = "Nucleotide"))
-            guides(colour = guide_legend(title = "Nucleotide"))
+            guides(colour = guide_legend(title = "Nucleotide"));
 
 
     # Produce sequence panels
     gg.seq <- df %>%
-        select(bin, pos, nt.ref, nt.pri, nt.sec) %>%
-        gather(seq, nt, nt.ref, nt.pri, nt.sec) %>%
+        select(bin, pos, nt.pri, nt.sec) %>%
+        gather(seq, nt, nt.pri, nt.sec) %>%
         mutate(
-            seq = factor(seq, levels = rev(c("nt.ref", "nt.pri", "nt.sec"))),
+            seq = factor(seq, levels = rev(c("nt.pri", "nt.sec"))),
             col = case_when(
-                seq == "nt.ref" & nt == "A" ~ "A",
-                seq == "nt.ref" & nt == "C" ~ "C",
-                seq == "nt.ref" & nt == "G" ~ "G",
-                seq == "nt.ref" & nt == "T" ~ "T",
+                seq == "nt.pri" & nt == "A" ~ "A",
+                seq == "nt.pri" & nt == "C" ~ "C",
+                seq == "nt.pri" & nt == "G" ~ "G",
+                seq == "nt.pri" & nt == "T" ~ "T",
                 TRUE ~ "G")) %>%
         ggplot() +
             facet_wrap(~ bin, scales = "free_x", ncol = 1) +
@@ -125,7 +111,6 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
             scale_x_continuous(breaks = seq(0, len, by = 20)) +
             scale_y_discrete(
                 labels = c(
-                    "nt.ref" = "Ref seq",
                     "nt.pri" = "Pri seq",
                     "nt.sec" = "Sec seq"));
 
@@ -148,13 +133,13 @@ ggchrom <- function(seq, ab1, title = "", maxN = 200, col.ACGT = c("green", "blu
         grobs = g.seq$grobs[grepl("panel", g.seq$layout$name)],
         t = pos + 1,
         l = 4);
-        grid.newpage();
-        grid.draw(g.all);
+    grid.newpage();
+    grid.draw(g.all);
 
     # Save as plot
-    cat(sprintf("Saving as %s.png\n", title));
+    cat(sprintf("Saving as %s.pdf\n", title));
     ggsave(
-        file = sprintf("%s.png", title),
+        file = sprintf("plots/%s.pdf", title),
         plot = g.all,
         width = 10,
         height = 1.5 * nrow(idx));

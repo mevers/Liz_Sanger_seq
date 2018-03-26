@@ -3,9 +3,14 @@ library(sangerseqR);
 
 
 # This function reads Sanger sequencing files recursively starting from path,
-# and extracts two IDs from the filename based on the two regular expressions
-# id1.regexp and id2.regexp
-get.sangerseq <- function(path = ".", pattern = "*.ab1", id.sample.re = NULL, id.exon.re = NULL) {
+# and extracts two IDs from the filename based on the three regular expressions
+# id.sample.re, id.exon.re, and id.strand.re
+get.sangerseq <- function(
+    path = ".",
+    pattern = "*.ab1",
+    id.sample.re = NULL,
+    id.exon.re = NULL,
+    id.strand.re = NULL) {
 
 
     # Sanger sequencing files
@@ -19,6 +24,7 @@ get.sangerseq <- function(path = ".", pattern = "*.ab1", id.sample.re = NULL, id
     # Parse fn.ab1 to extract exon ID
     id.sample <- gsub(id.sample.re[[1]], id.sample.re[[2]], basename(fn.ab1));
     id.exon <- gsub(id.exon.re[[1]], id.exon.re[[2]], basename(fn.ab1));
+    id.strand <- gsub(id.strand.re[[1]], id.strand.re[[2]], basename(fn.ab1));
     title <- gsub("\\.ab1", "", basename(fn.ab1));
 
 
@@ -34,7 +40,8 @@ get.sangerseq <- function(path = ".", pattern = "*.ab1", id.sample.re = NULL, id
             sangerseq = ab1[i],
             title = title[i],
             id.sample = id.sample[i],
-            id.exon = id.exon[i]));
+            id.exon = id.exon[i],
+            id.strand = id.strand[i]));
 
 
     # Return list
