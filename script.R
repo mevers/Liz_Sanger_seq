@@ -2,8 +2,9 @@ library(sangerseqR);
 library(Biostrings);
 library(GenomicRanges);
 library(tidyverse);
+library(msa);
 source("ggchrom.R");
-
+source("get.sangerseq.R");
 
 # From VWF sequencing data 012018/Notes.txt
 keys <- list(
@@ -13,48 +14,42 @@ keys <- list(
     "4" = "Brother");
 
 
-# Sanger sequencing files
-fn.ab1 <- list.files(
+lst.prob <- get.sangerseq(
+    path = "2016 sequencing",
+    id.regexp = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"));
+
+
+lst.rltv <- get.sangerseq(
     path = "VWF sequencing data 012018",
-    pattern = "*.ab1$",
-    full.names = TRUE,
-    recursive = TRUE);
+    id.regexp = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"));
 
 
-# Reference sequence files
-fn.seq <- sub("ab1$", "txt", fn.ab1);
+
+lst <- get.sangerseq(
+    path = "rawdata",
+    id.sample.re = list("^(.{1,3})-.+", "\\1"),
+    id.exon.re = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"))
 
 
-# Parse fn.ab1 to extract exon ID
-id.exon <- gsub("^.+-(\\d{2})\\w_\\w\\d{2}\\.ab1", "E\\1", basename(fn.ab1));
-title <- gsub("\\.ab1", "", basename(fn.ab1));
+# Convert list to long dataframe
+df.seq <- do.call(rbind.data.frame, lapply(lst, function(x)
+    cbind(id.sample = x$id.sample, id.exon = x$id.exon, seq = x$seq.pri))) %>%
+    mutate_if(is.factor, as.character) %>%
+    group_by(id.sample, id.exon) %>%
+    arrange(id.sample, id.exon) %>%
+    mutate(ntot = n()) %>%
+    mutate(id.exon.unique = ifelse(
+        ntot > 1,
+        sprintf("%s_rep%i", id.exon, 1:n()),
+        id.exon)) %>%
+    ungroup() %>%
+    select(-ntot) %>%
+    spread(id.sample, seq)
 
-
-# Read sequencing and sequence data
-ab1 <- lapply(fn.ab1, readsangerseq);
-seq <- lapply(fn.seq, function(x)
-    DNAString(paste0(readLines(x), collapse = "")));
-
-
-# Sanity check
-stopifnot(length(ab1) == length(seq));
-stopifnot(
-    all(sapply(ab1, function(x) x@primarySeq@length) == sapply(seq, length)))
-
-
-# Combine ab1, seq and title in list
-lst <- lapply(1:length(ab1), function(i)
-    c(sangerseq = ab1[i], seq = seq[i], title = title[i]))
 
 
 # Plot Sanger sequencing results
 #lapply(lst, function(x) ggchrom(x$seq, x$sangerseq, x$title));
-
-
-# pairWise alignment
-lst.perExon <- split(lst, id.exon);
-ab1.exon <- lapply(lst.perExon, function(x)
-    lapply(x, function(y) primarySeq(y$sangerseq)))
 
 
 # Read reference sequence and annotation of VWF (NM_000552.4)
@@ -74,15 +69,20 @@ gr <- read.delim("ref/NM_000552.4.gff3", header = F, comment.char = "#") %>%
 # Extract exon sequences
 ir <- ranges(gr);
 names(ir) <- gr$id;
-seq.exon <- extractAt(unlist(fa), at = ir);
+seq.ref <- extractAt(unlist(fa), at = ir);
+df.ref <- as_tibble(as.character(reverseComplement(seq.ref))) %>%
+    rownames_to_column("id.exon") %>%
+    rename(ref = value)
 
 
+# Left-join of Sanger and reference sequences; keep only entries where
+# we have sequencing data from all source (1:4, QJL, ref)
+df <- left_join(df.seq, df.ref, by = "id.exon") %>%
+    filter(complete.cases(.)) %>%
+    column_to_rownames("id.exon.unique");
 
-seq.exon <- seq.exon[names(seq.exon) %in% id.exon]
 
-
-pairwiseAlignment(seq.exon[1], ab1.exon[[1]][[1]], type = "global-local")
-
-
-
-tmp <- lapply(ab1.exon, function(x) DNAStringSet(x))
+# Multiple sequence alignment
+seq <- apply(df[, -1], 1, function(x) DNAStringSet(unlist(x)));
+res.msa <- lapply(seq, function(x) msa(x, type = "dna", order = "input"));
+print(res.msa[[1]], show = "complete");
