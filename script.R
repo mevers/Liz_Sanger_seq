@@ -113,3 +113,18 @@ for (i in 1:length(res.msa)) msaPrettyPrint(
     shadingMode = "identical",
     showConsensus = "none",
     logoColors = "accessible area");
+
+
+
+# NM_000552.3 transcript != NM_000552.4
+#fa <- readDNAStringSet("ref/NM_000552.3.fa");
+#df <- data.frame(
+#    seqnames = "NM_000552.3",
+#    start = c(640, 1701, 3264, 3860, 3942, 3936, 6018, 7489),
+#    end = c(640, 1701, 3264, 3860, 3942, 3936, 6018, 7489),
+#    id = c("rs2229444", "rs1800378", "rs749285654", "rs769502210", "rs61749368", "rs61749367", "rs778370191", "rs216867"));
+#gr <- df %>%
+#    makeGRangesFromDataFrame(keep.extra.columns = TRUE);
+#ir <- ranges(gr);
+#names(ir) <- gr$id;
+#snp.seq <- extractAt(unlist(fa), at = ir);
