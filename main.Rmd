@@ -54,7 +54,7 @@ tab.primers <- do.call(rbind.data.frame, lapply(
     function(x) cbind(x$id.exon, x$id.strand, x$id.sample))) %>%
     spread(V3, V2);
 tab.primers %>% 
-  kable("html") %>% 
+  kable("latex") %>% 
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = TRUE);
 ```
 

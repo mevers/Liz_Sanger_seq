@@ -90,12 +90,12 @@ df.ref <- as_tibble(as.character((seq.ref))) %>%
 # Left-join of Sanger and reference sequences; keep only entries where
 # we have sequencing data from all source (1:4, QJL, ref)
 df <- left_join(df.seq, df.ref, by = "id.exon") %>%
-    filter(complete.cases(.)) %>%
+#    filter(complete.cases(.)) %>%
     column_to_rownames("id.exon.unique");
 
 
 # Multiple sequence alignment
-seq <- apply(df[, -1], 1, function(x) DNAStringSet(unlist(x)));
+seq <- apply(df[, -1], 1, function(x) DNAStringSet(unlist(x[!is.na(x)])));
 names(seq) <- rownames(df);
 res.msa <- lapply(seq, function(x) {
     names(x) <- unlist(keys[names(x)]);
