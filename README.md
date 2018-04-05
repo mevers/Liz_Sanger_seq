@@ -48,14 +48,14 @@ E39 | Forward | Forward | Forward | Forward | Forward
 
 ## *VWF* Reference sequence
 
-We use [*NM_000552.4*](https://www.ncbi.nlm.nih.gov/nuccore/NM_000552) from NCBI's RefSeq database as reference sequence.
+We use [*NM_000552.4*](https://www.ncbi.nlm.nih.gov/nuccore/NM_000552) from NCBI's RefSeq database as reference sequence ([Link to Ensembl genome viewer](http://asia.ensembl.org/Homo_sapiens/Location/View?db=core;g=ENSG00000110799;r=12:5948874-6124770)).
 
-Note that [*NM_000552.3*](https://www.ncbi.nlm.nih.gov/nuccore/NM_000552.3) is missing the first 5 nucleotides but is otherwise identical to *NM_000552.4*. Results from a pairwise alignment analysis are given in file [aln-NM_000052.3-NM_000552.4.txt](aln-NM_000052.3-NM_000552.4.txt).
+Note that [*NM_000552.3*](https://www.ncbi.nlm.nih.gov/nuccore/NM_000552.3) is missing the first 5 nucleotides but is otherwise identical to *NM_000552.4*. Results from a pairwise sequence alignment analysis are given in file [aln-NM_000052.3-NM_000552.4.txt](aln-NM_000052.3-NM_000552.4.txt).
 
 
 ## Multiple sequence alignment
 
-We perform multiple sequence alignment of the reference sequence and primary call Sanger sequences for proband, father, mother, sister and brother, and for every exon using the R library [`msa`](https://bioconductor.org/packages/release/bioc/html/msa.html).
+We perform multiple sequence alignment of the reference sequence and primary call Sanger sequences for proband, father, mother, sister and brother, and for every exon using the R library [`msa`](https://bioconductor.org/packages/release/bioc/html/msa.html). `msa` uses [`ClustalW`](http://www.clustal.org/clustal2/) with default parameters for multiple sequence alignment.
 
   1. Primary/secondary basecall traceplots for all samples are given in `./plots/<sample>.pdf`, where `<sample>` is the filename as detailed above without the `.ab1` extension.  
   2. MSA results are given in `./plots/<exon_no>.pdf`, where `<exon_no>` is the exon number. Note that father, mother, sister, brother data is only available for exons 23, 27, 33, 39.
