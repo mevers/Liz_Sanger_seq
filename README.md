@@ -50,7 +50,7 @@ E39 | Forward | Forward | Forward | Forward | Forward
 
 We use [*NM_000552.4*](https://www.ncbi.nlm.nih.gov/nuccore/NM_000552) from NCBI's RefSeq database as reference sequence.
 
-Note that [*NM_000552.3*](https://www.ncbi.nlm.nih.gov/nuccore/NM_000552.3) is missing the first 5 nucleotides but is otherwise identical to *NM_000552.4*.
+Note that [*NM_000552.3*](https://www.ncbi.nlm.nih.gov/nuccore/NM_000552.3) is missing the first 5 nucleotides but is otherwise identical to *NM_000552.4*. Results from a pairwise alignment analysis are given in file [aln-NM_000052.3-NM_000552.4.txt](aln-NM_000052.3-NM_000552.4.txt).
 
 
 ## Multiple sequence alignment
