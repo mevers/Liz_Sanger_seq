@@ -21,8 +21,9 @@ keys <- list(
 lst <- get.sangerseq(
     path = "rawdata",
     id.sample.re = list("^(.{1,3})-.+", "\\1"),
-    id.exon.re = list("^.+-(\\d{1,2})\\w_\\w\\d{2}\\.ab1", "E\\1"),
-    id.strand.re = list("^.+-\\d{1,2}(\\w)_\\w\\d{2}\\.ab1", "\\1"));
+    id.exon.re = list("^.+V[MW]F-(\\d{1,2})(-[12])*\\w_\\w\\d{2}\\.ab1", "E\\1"),
+    id.strand.re = list("^.+V[MW]F-\\d{1,2}(-[12])*(\\w)_\\w\\d{2}\\.ab1", "\\2"));
+
 
 
 # Plot Sanger sequencing results
@@ -112,7 +113,8 @@ for (i in 1:length(res.msa)) msaPrettyPrint(
     askForOverwrite = FALSE,
     shadingMode = "identical",
     showConsensus = "none",
-    logoColors = "accessible area");
+    logoColors = "accessible area",
+    verbose = FALSE);
 
 
 
