@@ -25,7 +25,6 @@ lst <- get.sangerseq(
     id.strand.re = list("^.+V[MW]F-\\d{1,2}(-[12])*(\\w)_\\w\\d{2}\\.ab1", "\\2"));
 
 
-
 # Plot Sanger sequencing results
 for (i in 1:length(lst)) ggchrom(
     lst[[i]]$sangerseq,

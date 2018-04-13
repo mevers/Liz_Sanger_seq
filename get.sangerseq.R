@@ -38,6 +38,8 @@ get.sangerseq <- function(
             seq.pri = as.character(primarySeq(ab1[[i]])),
             seq.sec = as.character(secondarySeq(ab1[[i]])),
             sangerseq = ab1[i],
+            seq.het1 = as.character(primarySeq(makeBaseCalls(ab1[[i]], ratio = 0.33))),
+            seq.het2 = as.character(secondarySeq(makeBaseCalls(ab1[[i]], ratio = 0.33))),
             title = title[i],
             id.sample = id.sample[i],
             id.exon = id.exon[i],

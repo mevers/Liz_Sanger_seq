@@ -11,7 +11,8 @@ ggchrom <- function(
     ab1 = NULL,
     title = "",
     maxN = 200,
-    col.ACGT = c("green", "blue", "black", "red")) {
+    col.ACGT = c("green", "blue", "black", "red"),
+    ratio = 0.33) {
 
 
     # Sanity check
@@ -20,14 +21,22 @@ ggchrom <- function(
 
 
     # Get length of sequence
-    len <- length(primarySeq(ab1));
+    len <- length(primarySeq(makeBaseCalls(ab1, ratio = ratio)));
 
 
     # Reference, primary and secondary sequence
     df.seq <- cbind.data.frame(
-        nt.pri = unlist(strsplit(as.character(primarySeq(ab1)), "")),
-        nt.sec = unlist(strsplit(as.character(secondarySeq(ab1)), "")),
+        nt.het1 = unlist(strsplit(as.character(primarySeq(makeBaseCalls(
+            ab1, ratio = ratio))), "")),
+        nt.het2 = unlist(strsplit(as.character(secondarySeq(makeBaseCalls(
+            ab1, ratio = ratio))), "")),
         pos = 1:len);
+
+
+    # Ensure that primary and secondary sequences only contain
+    # A, C, G, T, N
+    df.seq <- df.seq %>%
+        mutate_at(vars(contains("nt")), function(x) sub("[^ACGTN]", "N", x));
 
 
     # Trace matrix
@@ -69,7 +78,15 @@ ggchrom <- function(
     # Trace plot
     gg.val <- df %>%
         ggplot(aes(x = pos, y = log10(val))) +
+            geom_rect(
+                data = df %>%
+                    filter(nt.het1 != nt.het2) %>%
+                    group_by(pos, bin) %>%
+                    summarise(val = 1),
+                aes(xmin = pos - 0.5, xmax = pos + 0.5, ymin = 0, ymax = Inf),
+                fill = "black", alpha = 0.2) +
             geom_line(aes(colour = nt.tr)) +
+            geom_point(aes(colour = nt.tr), size = 0.5) +
             facet_wrap(~ bin, scales = "free_x", ncol = 1) +
             labs(x = "Position [in nt]", y = "log10 Signal", title = title) +
             scale_x_continuous(breaks = seq(0, len, by = 20)) +
@@ -85,20 +102,21 @@ ggchrom <- function(
 
     # Produce sequence panels
     gg.seq <- df %>%
-        select(bin, pos, nt.pri, nt.sec) %>%
-        gather(seq, nt, nt.pri, nt.sec) %>%
+        select(bin, pos, nt.het1, nt.het2) %>%
+        gather(seq, nt, nt.het1, nt.het2) %>%
         mutate(
-            seq = factor(seq, levels = rev(c("nt.pri", "nt.sec"))),
+            seq = factor(seq, levels = rev(c("nt.het1", "nt.het2"))),
             col = case_when(
-                seq == "nt.pri" & nt == "A" ~ "A",
-                seq == "nt.pri" & nt == "C" ~ "C",
-                seq == "nt.pri" & nt == "G" ~ "G",
-                seq == "nt.pri" & nt == "T" ~ "T",
+                seq == "nt.het1" & nt == "A" ~ "A",
+                seq == "nt.het1" & nt == "C" ~ "C",
+                seq == "nt.het1" & nt == "G" ~ "G",
+                seq == "nt.het1" & nt == "T" ~ "T",
                 TRUE ~ "G")) %>%
         ggplot() +
             facet_wrap(~ bin, scales = "free_x", ncol = 1) +
             geom_text(
-                aes(x = pos, y = seq, label = nt, colour = col),
+#                aes(x = pos, y = seq, label = nt, colour = col),
+                aes(x = pos, y = seq, label = nt),
                 size = 1.5,
                 show.legend = FALSE,
                 fontface = "bold") +
@@ -111,8 +129,8 @@ ggchrom <- function(
             scale_x_continuous(breaks = seq(0, len, by = 20)) +
             scale_y_discrete(
                 labels = c(
-                    "nt.pri" = "Pri seq",
-                    "nt.sec" = "Sec seq"));
+                    "nt.het1" = "Pri seq",
+                    "nt.het2" = "Sec seq"));
 
 
     # Combine grobs from gg.val and gg.seq
