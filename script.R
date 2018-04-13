@@ -45,7 +45,8 @@ df.seq <- do.call(rbind.data.frame, lapply(lst, function(x)
         id.sample = x$id.sample,
         id.exon = x$id.exon,
         id.strand = x$id.strand,
-        seq = x$seq.pri))) %>%
+        seq.pri = x$seq.het1,
+        seq.sec = x$seq.het2))) %>%
     mutate_if(is.factor, as.character) %>%
     group_by(id.sample, id.exon) %>%
     arrange(id.sample, id.exon) %>%
@@ -56,12 +57,20 @@ df.seq <- do.call(rbind.data.frame, lapply(lst, function(x)
             sprintf("%s_rep%i", id.exon, 1:n()),
             id.exon)) %>%
     ungroup() %>%
-    mutate(seq = ifelse(
-        id.strand == "R",
-        as.character(reverseComplement(DNAStringSet(seq))),
-        seq)) %>%
+    mutate(
+        seq.pri = ifelse(
+            id.strand == "R",
+            as.character(reverseComplement(DNAStringSet(seq.pri))),
+            seq.pri),
+        seq.sec = ifelse(
+            id.strand == "R",
+            as.character(reverseComplement(DNAStringSet(seq.sec))),
+            seq.sec)) %>%
     select(-ntot, -id.strand) %>%
-    spread(id.sample, seq);
+    gather(call, seq, seq.pri:seq.sec) %>%
+    unite(id, id.sample, call, sep = "_") %>%
+    spread(id, seq)
+
 
 
 # Read reference sequence and annotation of VWF (NM_000552.4)
@@ -98,15 +107,20 @@ df <- left_join(df.seq, df.ref, by = "id.exon") %>%
 seq <- apply(df[, -1], 1, function(x) DNAStringSet(unlist(x[!is.na(x)])));
 names(seq) <- rownames(df);
 res.msa <- lapply(seq, function(x) {
-    names(x) <- unlist(keys[names(x)]);
+    names(x) <- sapply(strsplit(names(x), "_"), function(x)
+        ifelse(
+            !is.na(x[2]),
+            paste(unlist(keys[x[1]]), gsub("seq\\.", "", x[2])),
+            unlist(keys[x[1]])));
     msa(x, type = "dna", order = "input")
 });
 
 
 # Print results
+setwd("plots");
 for (i in 1:length(res.msa)) msaPrettyPrint(
     res.msa[[i]],
-    file = sprintf("plots/%s.pdf", names(res.msa)[i]),
+    file = sprintf("%s.pdf", names(res.msa)[i]),
     paperWidth = 11.69, paperHeight = 8.27,
     margins = c(0.1, 0.2),
     askForOverwrite = FALSE,
@@ -114,7 +128,7 @@ for (i in 1:length(res.msa)) msaPrettyPrint(
     showConsensus = "none",
     logoColors = "accessible area",
     verbose = FALSE);
-
+setwd("..");
 
 
 # NM_000552.3 transcript != NM_000552.4
