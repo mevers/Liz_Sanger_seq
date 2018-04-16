@@ -114,6 +114,7 @@ res.msa <- lapply(seq, function(x) {
             unlist(keys[x[1]])));
     msa(x, type = "dna", order = "input")
 });
+save(res.msa, file = "res.msa.RData");
 
 
 # Print results
@@ -131,15 +132,42 @@ for (i in 1:length(res.msa)) msaPrettyPrint(
 setwd("..");
 
 
-# NM_000552.3 transcript != NM_000552.4
-#fa <- readDNAStringSet("ref/NM_000552.3.fa");
-#df <- data.frame(
-#    seqnames = "NM_000552.3",
-#    start = c(640, 1701, 3264, 3860, 3942, 3936, 6018, 7489),
-#    end = c(640, 1701, 3264, 3860, 3942, 3936, 6018, 7489),
-#    id = c("rs2229444", "rs1800378", "rs749285654", "rs769502210", "rs61749368", "rs61749367", "rs778370191", "rs216867"));
-#gr <- df %>%
-#    makeGRangesFromDataFrame(keep.extra.columns = TRUE);
-#ir <- ranges(gr);
-#names(ir) <- gr$id;
-#snp.seq <- extractAt(unlist(fa), at = ir);
+# Determine number of mismatches
+n.mm <- lapply(res.msa, function(x) {
+    ss <- unmasked(x);
+    idx.ref <- which(names(ss) == "RefSeq");
+    pos.ref <- as.character(ss[idx.ref]) %>% str_locate_all("[^-]") %>% range();
+    ss <- subseq(ss, pos.ref[1], pos.ref[2]);
+    c(
+        `Length ref` = diff(pos.ref) + 1,
+        mapply(adist, as.character(ss[-idx.ref]), as.character(ss[idx.ref]), SIMPLIFY = F));
+})
+df.mm <- data.frame(bind_rows(lapply(n.mm, as.data.frame)), row.names = names(res.msa))
+
+
+# Plot number of mismatches per exon
+exons.ordered <- rownames(df.mm)[order(as.numeric(
+    gsub("^E(\\d+).*$", "\\1", rownames(df.mm))))]
+samples.ordered <- expand.grid(unlist(keys), c("pri", "sec")) %>%
+    arrange(Var1, Var2) %>% mutate(id = paste(Var1, Var2, sep = ".")) %>% pull(id);
+df.mm %>%
+    rownames_to_column("Exon") %>%
+    gather(Sample, Number_of_mm, -Exon, -Length.ref) %>%
+    mutate(
+        Exon = factor(Exon, levels = exons.ordered),
+        Sample = factor(Sample, levels = samples.ordered),
+        Number_of_mm_binned = cut(
+            Number_of_mm,
+            breaks = c(-1:10, max(Number_of_mm, na.rm = TRUE)),
+            labels = as.character(c(0:10, ">10")))) %>%
+    ggplot(aes(x = Sample, y = Exon, fill = Number_of_mm_binned)) +
+    geom_tile() +
+    geom_text(
+        aes(label = Number_of_mm, colour = ifelse(Number_of_mm < 10, "0", "1")),
+        size = 2) +
+    scale_fill_brewer(palette = "Reds") +
+    scale_colour_manual(values = c("black", "white"), guide = F) +
+    labs(fill = "Number of mismatches") +
+    theme_bw() +
+    theme(legend.position = "bottom")
+ggsave(file = "mismatches.pdf", height = 8, width = 12)
