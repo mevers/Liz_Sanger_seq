@@ -84,10 +84,11 @@ if (!file.exists("df.LOVD.VWF.var.RData")) {
 
 # Clean VWF LOVD variant data
 df <- df.LOVD.VWF.var %>%
-    select(Exon, DNA_change, Protein_change, VWD_type, No_Reported) %>%
     filter(
-        str_detect(Exon, "^\\d+$"),
-        !str_detect(VWD_type, "-")) %>%
+        str_detect(Exon, "^\\d+$"),         # Select all exons
+        !str_detect(VWD_type, "-"),         # Exclude VWD types labelled "-"
+        str_detect(Technique, "SEQ")) %>%   # Select SEQ entries
+    select(Exon, DNA_change, Protein_change, VWD_type, No_Reported) %>%
     mutate(
         No_Reported = as.numeric(as.character(No_Reported)),
         VWD_type = gsub("^(type [1-3]\\w*).*$", "\\1", tolower(VWD_type)));
@@ -111,12 +112,29 @@ df %>%
             x = "Exon",
             y = "Number of mutations",
             title = "Number of mutations per exon per VWD classifaction",
-            caption = "[Source: https://grenada.lumc.nl/LOVD2/VWF/variants.php]") +
+            caption = "[Source: https://grenada.lumc.nl/LOVD2/VWF/variants.php?select_db=VWF&action=view_all]") +
         scale_fill_brewer(palette = "Set2");
 ggsave(file = "mutations_per_exon_per_VWD_LOVD.pdf", height = 16, width = 12);
 
 
-
+# Plot heatmap
 df %>%
-    complete(Exon, VWD_type) %>%
-    count()
+    mutate_if(is.character, as.factor) %>%
+    group_by(VWD_type, Exon) %>%
+    summarise(count = sum(No_Reported)) %>%
+    complete(Exon) %>%
+    mutate(
+        Exon = factor(Exon, levels = unique(df$Exon)),
+        count = ifelse(is.na(count), 0, count)) %>%
+    ggplot(aes(x = Exon, y = VWD_type, fill = count)) +
+    geom_tile() +
+    scale_fill_gradientn(colours = RColorBrewer::brewer.pal(9, "Reds")) +
+    labs(fill = "Number of mutations") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    labs(
+        x = "Exon",
+        y = "VWD type",
+        title = "Number of mutations per exon per VWD classifaction",
+        caption = "[Source: https://grenada.lumc.nl/LOVD2/VWF/variants.php?select_db=VWF&action=view_all]")
+ggsave(file = "mutations_heatmap_LOVD.pdf", height = 16, width = 12);
